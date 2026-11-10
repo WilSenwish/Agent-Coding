@@ -521,6 +521,7 @@ coverage
 
 # OSX
 .DS_Store
+**/.DS_Store
 
 # Visual Studio files
 .ntvs_analysis.dat
