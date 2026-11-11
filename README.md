@@ -89,3 +89,12 @@ done
 - **skill 目录**：`SKILL.md` 正文不超过 500 行；长内容放 `references/`，正文只做一层引用；脚本放 `scripts/`，必须可独立执行、退出码语义清晰。
 - **不引入**：README/CHANGELOG 等人读文件（读者读 SKILL.md 就行）、第三方依赖、编译产物。
 - **frontmatter**：只保留 `name` + `description`，无多余字段；`description` 单行、无 `: `、无 `<` `>`、包含 what + when 触发词。
+
+### 硬性禁止（别踩）
+
+| ❌ 禁止 | ✅ 正确 | 为什么 |
+|---|---|---|
+| 把 skill 放进 `.trae/skills/`、`.cursor/rules/` 或其他嵌套目录 | skill 直接放在仓库根目录下作为一级子目录 | 本仓库是 skills **管理仓库**，skill 是仓库的本体内容，不是某个 IDE/工具的运行时配置目录。其他项目通过软链接从本仓库根目录引用 |
+| 在本仓库里跑 `skill-creator` 的 install 流程 | 只在**其他项目仓库**里用软链接消费本仓库的 skill | install 是往某个项目的 `.trae/skills/` 或全局目录装，那是消费方的事；本仓库是生产方，目录结构与消费方无关 |
+
+> **定位一句话**：本仓库 = skill 的源代码仓库，skill 目录 = 源代码；`.trae/skills/` 是消费方运行时目录，与本仓库无关。

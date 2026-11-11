@@ -14,9 +14,11 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
 | **3** | **测试从规格出发而非实现**：每条断言回标 SPEC-ID。禁止断言抄实现里的 if 条件。 | 测试预期直接抄代码判断 → 实现和测试一起错 |
 | **4** | **顺序锁死 + TDD 红绿蓝不跳步**：基线 → 波及面 → 测试规划 → 编码；红→绿→蓝，跳过蓝=禁止。 | 先写实现后补测试；绿就停跳过重构 |
 | **5** | **双阶段评审 + 漂移拦截**：写完必须 Diff 审查 + 基线对照，漂移立即回流。 | 只看"能不能跑通"，漏删断言、漏改异常 message |
-| **6** | **跨会话必须交接**：E4 交付时同步产出 HANDOFF.md（代码现场 + 验证状态 + 下一步）。 | 新会话从零翻代码猜进度 |
+| **6** | **仅跨会话/中断时交接**：会话中断、换会话或明确要求交接时，产出 HANDOFF.md（代码现场 + 验证状态 + 下一步）。同一会话连续跑完→可省。 | 同一会话跑完还要产 HANDOFF；换会话从零翻代码猜进度 |
 | **7** | **AI 权限分层**：禁止升级依赖、改 pom.xml、改 yml、连 DB。 | AI 顺手升级 SpringBoot 改 logback 连开发库 |
 | **8** | **方法不超 30 行且含多级缩进 → 必须拆分**（AGENTS.md SRP） | 80 行方法塞校验+组装+调用 |
+| **9** | **串行执行，禁止并行**（已明确标记可并行的独立子任务除外） | 同时跑多个子 Agent、同时写多个产物 |
+| **10** | **结果尽快落盘** | 每个子阶段完成立即写文件，不堆到最后一次性输出 |
 
 ---
 
@@ -32,7 +34,8 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
 
 ```
 阶段1 基线 + 审计：
-  01-baseline-spec.md
+  01-baseline-spec.md           # 结构化规约（谓词/SPEC-ID/伪代码/不变量，真值源）
+  01-baseline-readable.md       # 从 spec 反向生成，便于开发人员快速阅读确认
   02-impact-scan.md
   03-audit-baseline.md
 
@@ -80,7 +83,7 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
   B1 需求澄清（自然语言，三分区打标，含 Code Change Scope + 技术约束）
   B2-0 存量代码调研（找入口 → 走调用链 → 定位规则 → 扫过期描述）
   B2 波及面扫描 → 02-impact-scan.md（先扫代码，后写规约）
-  B3 结构化为规约基线 → 01-baseline-spec.md（SPEC-ID / 谓词 / 伪代码 / 不变量 / 验收标准表 / 技术约束）
+  B3 结构化为规约基线 → 01-baseline-spec.md（SPEC-ID / 谓词 / 伪代码 / 不变量 / 验收标准表 / 技术约束）+ 01-baseline-readable.md（从 spec 反向生成的自然语言版，便于开发人员快速阅读确认）
   B4 四条对齐审计 → 03-audit-baseline.md
   ★ 人工关卡 A：确认 [01-baseline-spec + 02-impact-scan + 03-audit-baseline]
 
@@ -379,6 +382,7 @@ docs/<分支名>/scripts/
 | §2.2 + §2.3 | 新增类是否有类级 JavaDoc + `@author Junbing.Chen`；Model 共用 Where 是否含 Param 专有条件 |
 | §2.4 + §4 | 改动类清无用 import；跨表/多语句 Service 是否有 `@Transactional` |
 | §5 N1~N6 + §7 重复代码 | 循环查库（N1）、无索引（N2）、无界查询（N3）、热路径无缓存（N4）、事务内远程调用/长循环（N5/N6）；同逻辑第三次出现是否已重构为公共组件 |
+| §8 + §9 + §10 | 方法名是否自解释、注释是否最小化；魔法值是否转常量/枚举；Excel/CSV 导入是否验内容、图片等二进制是否只验数量 |
 
 阶段 C/D 任一 = ⛔ 不通过，回流修复。
 
@@ -418,9 +422,9 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 ---
 
-## 跨会话交接（E4 交付时同步输出）
+## 跨会话交接（仅会话中断/换会话时产出）
 
-当会话中断或交付时，自动生成 `10-HANDOFF.md`，必须包含 6 段：
+会话中断、换会话或明确要求交接时，自动生成 `10-HANDOFF.md`，必须包含 6 段：
 
 1. **目标与约定**：当前任务目标 + baseline 关键约束
 2. **代码现场**：已改/新/删/重命名的文件清单 + Git 基线
@@ -435,11 +439,9 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 ## 渐进式使用
 
-| 模式 | 走哪几步 | 场景 |
-|---|---|---|
-| **轻量** | 阶段1（基线+波及面+审计）+ 阶段3（TDD+覆盖核对），跳过独立测试规划文档 | 小需求、单方法改动、热修 |
-| **标准** | 完整三阶段 | 中等需求、新增接口、改业务规则 |
-| **完整** | 完整三阶段 + git worktree 隔离 + 独立 Agent 做 E3-0 评审 | 大重构、多模块、多 Agent |
+- **轻量**：阶段1 + 阶段3，跳过独立测试规划文档（小需求、单方法改动、热修）
+- **标准**：完整三阶段（中等需求、新增接口、改业务规则）
+- **完整**：完整三阶段 + git worktree + 独立 Agent E3-0 评审（大重构、多模块、多 Agent）
 
 ---
 
@@ -449,7 +451,8 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 ```
 阶段1 基线 + 审计：
-  docs/<分支>/01-baseline-spec.md          # 结构化规约基线（冻结版 + 版本记录 + 验收标准表 + 技术约束）
+  docs/<分支>/01-baseline-spec.md
+  docs/<分支>/01-baseline-readable.md
   docs/<分支>/02-impact-scan.md            # 改动波及面扫描（每条 IMP-xx 带风险等级 + 证据）
   docs/<分支>/03-audit-baseline.md         # 四条对齐审计
 
@@ -461,14 +464,14 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
   docs/<分支>/08-frontend-contract.md      # 前后端联调契约（接口变更/新增告知 + 前端 AI 开发门禁）
 
 阶段3 交付报告 + 脚本：
-  docs/<分支>/09-spec-coverage-report.md   # 覆盖核对（SPEC 矩阵 + 高危 IMP + 越界 + 漂移）
-  docs/<分支>/10-HANDOFF.md                # 跨会话交接（代码状态 vs 验证状态 + 下一步）
-  docs/<分支>/scripts/01-ddl-*.sql         # DDL 变更（关联批次合并一个文件）
-  docs/<分支>/scripts/02-migration-*.sql   # 数据迁移（关联批次合并一个文件，幂等）
+  docs/<分支>/09-spec-coverage-report.md
+  docs/<分支>/10-HANDOFF.md
+  docs/<分支>/scripts/01-ddl-*.sql
+  docs/<分支>/scripts/02-migration-*.sql
 
 源码：
-  src/test/**/unit/**       # 单元测试代码（禁止 @SpringBootTest）
-  src/test/**/integration/**# 接口集成测试代码
+  src/test/**/unit/          # 单元测试（禁止 @SpringBootTest）
+  src/test/**/integration/   # 接口集成测试
   业务源码
 ```
 
@@ -476,13 +479,11 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 ## 何时读哪个 reference
 
-- 写基线规约 → `references/baseline-spec-template.md`
-- 扫波及面详细证据 → `references/impact-scan-checklist.md`
 - 写测试规划详细表格 → `references/test-plan-templates.md`
 - 出审计/偏差/覆盖报告示例 → `references/audit-templates.md`
 - 填前后端联调契约 → `references/frontend-contract-template.md`
-- **写实现 / E3-0 编码规约审查** → `references/clean-coding-conventions.md`
-- 机械校验 SPEC-ID 覆盖 → `scripts/check_spec_coverage.py`（退出码 0=全过，`--require-impact` 查 IMP 绑定）
+- 写实现 / E3-0 编码规约审查 → `references/clean-coding-conventions.md`
+- 机械校验 SPEC-ID 覆盖 → `scripts/check_spec_coverage.py`（exit=0 全过，`--require-impact` 查 IMP 绑定）
 
 ---
 
@@ -490,9 +491,9 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 | 你现在想... | 第一步做什么 | 产出 |
 |---|---|---|
-| 聊清楚需求，别瞎写 | 先做 B1 澄清 + B2-0 存量调研 | docs/<分支>/01-baseline-spec.md V1 |
+| 聊清楚需求，别瞎写 | B1 澄清 + B2-0 存量调研 | 01-baseline-spec V1 + 01-baseline-readable |
 | 有了基线，想拆任务实现 | 走阶段2，先写 05 + 06，再写 07 | 测试规划 + 实现方案 + 08 前端契约 |
 | 想写代码了 | 走 E1 先写单元测试 → 跑红 → E2 实现（同步产出 scripts/*.sql）→ 绿 → 蓝 | 代码 + 测试 + DDL/迁移脚本 |
 | 写完想审一下 | 走 E3-0 三阶段评审（Diff + 基线对照 + 设计原则），通过后再写集成测试 | 评审记录 |
-| 要换会话/明天再继续 | 走 E4 交付时同步产出 10-HANDOFF.md | 10-HANDOFF.md |
+| 要换会话/明天再继续 | 走 E4 → 需要时产出 10-HANDOFF.md | 10-HANDOFF.md |
 | 发现需求变了 | 停止当前阶段 → 回流阶段1 B1 → 基线升版本 → 重跑审计和关卡 A | 更新后的全套产物（序号可能顺延新增） |
