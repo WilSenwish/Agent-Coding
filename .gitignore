@@ -7356,3 +7356,15 @@ result
 result-*
 
 .trae
+# --- 本地克隆的三方参考仓库（不属于本仓库） ---
+superpowers-optimized/
+ponytail/
+super-opt-spec-tdd/
+
+
+# --- Superpowers 记忆栈文件（hooks SessionStart 自动创建，不应入库） ---
+state.md
+session-log.md
+known-issues.md
+project-map.md
+context-snapshot.json

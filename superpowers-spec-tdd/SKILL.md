@@ -42,7 +42,6 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
 阶段2 规划 + 契约：
   04-exploration-options.md     # OPEN 项决策（影响后续测试规划边界，先产出）
   05-test-plan-unit.md
-  06-test-plan-api.md
   07-plan.md                    # 实现方案
   08-frontend-contract.md
 
@@ -89,19 +88,17 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
 
 阶段2 Writing-plans
   P1 单元测试规划 → 05-test-plan-unit.md
-  P2 接口集成测试规划 → 06-test-plan-api.md
-  P3 实现方案（必须排在 P1 P2 之后，采用 TASKS.md 任务卡片格式，含依赖图）→ 07-plan.md
-  P4 待探索决策单 → 04-exploration-options.md
-  P5 前端联调契约文档 → 08-frontend-contract.md（接口变更/新增告知 + 前端 AI 开发门禁）
-  ★ 人工关卡 B：确认 [04 + 05 + 06 + 07 + 08]
+  P2 实现方案（必须排在 P1 之后，采用 TASKS.md 任务卡片格式，含依赖图）→ 07-plan.md
+  P3 待探索决策单 → 04-exploration-options.md
+  P4 前端联调契约文档 → 08-frontend-contract.md（接口变更/新增告知 + 前端 AI 开发门禁）
+  ★ 人工关卡 B：确认 [04 + 05 + 07 + 08]
 
 阶段3 Execute-plan
   E1 先写单元测试代码（由 05 实例化）→ 跑红
   E2 写实现代码（同步产出 scripts/01-ddl-*.sql + scripts/02-migration-*.sql）→ 跑绿 → 重构（蓝）；方法超 30 行必须拆分
-  E3-0 业务代码整体评审（三阶段：Diff 审查 → 基线对照审查 → 设计原则审查）
-  E3 写接口集成测试代码（由 06 实例化）→ 跑绿
-  E4 覆盖核对 → 09-spec-coverage-report.md + 10-HANDOFF.md
-  → delivery: 代码 + 测试 + docs/<分支>/scripts/*.sql + 10 份 md 文档
+  E3-0 业务代码整体评审（四阶段：Diff 审查 → 基线对照审查 → 设计原则审查 → 编码规约审查）
+  E3 覆盖核对 → 09-spec-coverage-report.md + 10-HANDOFF.md
+  → delivery: 代码 + 单元测试 + docs/<分支>/scripts/*.sql + 9 份 md 文档
 ```
 
 **人工只介入两次（关卡 A、关卡 B）**，其余全部自动串行。这是本 Skill 的负载设计目标。
@@ -249,21 +246,9 @@ description: Superpowers 流程加固版，在 Brainstorming、Writing-plans、E
 - Mock 边界表必须列出：每个依赖怎么 mock、为什么 mock
 - 断言要求：**返回值具体内容、异常类型与错误码、关键状态变更**。禁止 `assertNotNull` 糊弄
 
-### P2 接口集成测试规划
+### P2 实现方案
 
-同文件第二部分。仅覆盖本次变更接口。
-
-#### 集成层三层断言要求
-
-**HTTP 状态 + 响应体字段 + 数据侧状态**（DB 行 / Redis key）三层都要断言。响应体除关键字段外做 schema 校验（字段名、类型、必填），防契约漂移。
-
-#### 必查场景
-
-参数非法 / 未登录 / 越权 / 幂等 / 事务回滚 / 缓存一致性 / 响应 schema 匹配契约。
-
-### P3 实现方案
-
-排在 P1 P2 之后写。**采用 TASKS.md 任务卡片格式**，每个子任务必须包含：
+排在 P1 之后写。**采用 TASKS.md 任务卡片格式**，每个子任务必须包含：
 
 ```markdown
 ## T1：<任务名>
@@ -299,7 +284,7 @@ docs/<分支名>/scripts/
 
 ### P4 待探索决策单
 
-`exploration-options.md`：每个 `OPEN` 项给方案 A/B/C + 对接口/DB/单测/集成的增量影响 + 风险 + 推荐倾向。人工三选一：采纳（并入 SETTLED 并重生成 plan/清单）／延后（转 OUT_OF_SCOPE）／维持存量。
+`exploration-options.md`：每个 `OPEN` 项给方案 A/B/C + 对接口/DB/单测的增量影响 + 风险 + 推荐倾向。人工三选一：采纳（并入 SETTLED 并重生成 plan/清单）／延后（转 OUT_OF_SCOPE）／维持存量。
 
 ### P5 前端联调契约文档
 
@@ -320,7 +305,7 @@ docs/<分支名>/scripts/
 
 - 每条用例有 SPEC-ID 且 SPEC 为 SETTLED；IMP-高 全覆盖或有豁免
 - 边界+异常分支数 ≥ 正向；断言是强断言（值/码/状态），无 `assertNotNull`
-- 单元层无 `@SpringBootTest`、无真实中间件；集成层只覆盖变更接口
+- 单元层无 `@SpringBootTest`、无真实中间件；所有依赖有 Mock 边界说明
 - 未覆盖项有理由，无"待补"；frontend-contract.md 完整且前端 AI 门禁清晰
 
 > 关卡 B 通过后 plan 锁定。此后任何新增规则只能回流阶段1。
@@ -329,7 +314,7 @@ docs/<分支名>/scripts/
 
 ## 阶段3：Execute-plan
 
-与原生 `subagent-driven-development` + `test-driven-development` 组合，但**子任务内部顺序被改写**：先测试代码，后实现代码；子任务不做集成测试。
+与原生 `subagent-driven-development` + `test-driven-development` 组合，但**子任务内部顺序被改写**：先测试代码，后实现代码。
 
 **基线守门检查清单（写完代码后）**：
 - ☐ 再读一遍 baseline-spec.md，逐条核对每条规则是否被覆盖
@@ -352,7 +337,7 @@ docs/<分支名>/scripts/
 - §4 事务：跨表/多语句 Service public 方法加 `@Transactional(rollbackFor=Exception.class)`
 - §5 N1~N6：禁 N+1、无索引、无界查询、热路径无缓存、事务内远程调用/长循环
 
-### E3-0 业务代码整体评审（四阶段，在写接口集成测试之前）
+### E3-0 业务代码整体评审（四阶段）
 
 **阶段 A · Diff 审查（代码质量）**
 
@@ -386,11 +371,7 @@ docs/<分支名>/scripts/
 
 阶段 C/D 任一 = ⛔ 不通过，回流修复。
 
-### E3 接口层
-
-E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Testcontainers 或等价方案拉起 PG/Redis，外部第三方 WireMock；只覆盖本次变更接口。
-
-### E4 覆盖核对
+### E3 覆盖核对
 
 产出 `spec-coverage-report.md`：
 
@@ -459,7 +440,6 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 阶段2 规划 + 契约：
   docs/<分支>/04-exploration-options.md    # OPEN 项决策单
   docs/<分支>/05-test-plan-unit.md         # 单元测试规划（必查 5 类用例 + Mock 边界）
-  docs/<分支>/06-test-plan-api.md          # 接口集成测试规划（三层断言 + 执行顺序）
   docs/<分支>/07-plan.md                   # 实现方案（任务卡片 + SPEC-ID 映射 + 依赖图）
   docs/<分支>/08-frontend-contract.md      # 前后端联调契约（接口变更/新增告知 + 前端 AI 开发门禁）
 
@@ -471,7 +451,6 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 
 源码：
   src/test/**/unit/          # 单元测试（禁止 @SpringBootTest）
-  src/test/**/integration/   # 接口集成测试
   业务源码
 ```
 
@@ -492,8 +471,8 @@ E3-0 评审通过后，按 `test-plan-api.md` 实例化接口集成测试。Test
 | 你现在想... | 第一步做什么 | 产出 |
 |---|---|---|
 | 聊清楚需求，别瞎写 | B1 澄清 + B2-0 存量调研 | 01-baseline-spec V1 + 01-baseline-readable |
-| 有了基线，想拆任务实现 | 走阶段2，先写 05 + 06，再写 07 | 测试规划 + 实现方案 + 08 前端契约 |
-| 想写代码了 | 走 E1 先写单元测试 → 跑红 → E2 实现（同步产出 scripts/*.sql）→ 绿 → 蓝 | 代码 + 测试 + DDL/迁移脚本 |
-| 写完想审一下 | 走 E3-0 三阶段评审（Diff + 基线对照 + 设计原则），通过后再写集成测试 | 评审记录 |
+| 有了基线，想拆任务实现 | 走阶段2，先写 05，再写 07 | 测试规划 + 实现方案 + 08 前端契约 |
+| 想写代码了 | 走 E1 先写单元测试 → 跑红 → E2 实现（同步产出 scripts/*.sql）→ 绿 → 蓝 | 代码 + 单元测试 + DDL/迁移脚本 |
+| 写完想审一下 | 走 E3-0 四阶段评审（Diff + 基线对照 + 设计原则 + 编码规约） | 评审记录 |
 | 要换会话/明天再继续 | 走 E4 → 需要时产出 10-HANDOFF.md | 10-HANDOFF.md |
 | 发现需求变了 | 停止当前阶段 → 回流阶段1 B1 → 基线升版本 → 重跑审计和关卡 A | 更新后的全套产物（序号可能顺延新增） |

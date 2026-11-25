@@ -1,11 +1,11 @@
-# 测试规划模板（必须在编码之前产出）
+# 单元测试规划模板（必须在编码之前产出）
 
-> 两份规划都是**规划**，不写测试代码。每条用例必须回标 `SPEC-ID`，并注明覆盖的 `IMP-xx`。
+> 这是**规划**，不写测试代码。每条用例必须回标 `SPEC-ID`，并注明覆盖的 `IMP-xx`。
 > 写不出 SPEC-ID 的用例 → 说明它在测基线外的规则，删掉或回流基线。
 
 ---
 
-## 第一部分：test-plan-unit.md（单元测试规划）
+## test-plan-unit.md（单元测试规划）
 
 ### 1. 被测单元清单（只列本次 Code Change Scope 内的）
 
@@ -14,7 +14,7 @@
 | U1 | OrderService | `cancel(orderId, reason, operator)` | REQ-SPEC-001 | IMP-03 |
 | U2 | RefundCalculator | `calc(order)` | REQ-SPEC-002 | IMP-11 |
 
-> Controller 与 Mapper 不做单元测试（前者归接口集成测试，后者归 DB 层验证）。工具类、枚举转换、领域校验可按需纳入。
+> Controller 不做单元测试（走人工接口验证）；Mapper 不做单元测试（走 DB 层验证）。工具类、枚举转换、领域校验可按需纳入。
 
 ### 2. 用例矩阵
 
@@ -63,59 +63,6 @@
 
 ---
 
-## 第二部分：test-plan-api.md（接口集成测试规划）
-
-### 1. 接口清单（仅本次变更接口）
-
-| # | 方法 | 路径 | 变更点 | 关联 SPEC | 关联 IMP |
-|---|---|---|---|---|---|
-| A1 | POST | `/api/orders/{id}/cancel` | 新增 reason 校验 + 退款 | REQ-SPEC-001 | IMP-01 |
-
-### 2. 用例矩阵
-
-| 用例ID | 场景 | 请求 | 预期 HTTP | 预期响应体关键字段 | 数据侧校验 | SPEC | IMP |
-|---|---|---|---|---|---|---|---|
-| A1-C1 | 正常取消 | 合法 body + CS token | 200 | `code=0`，`data.status=CANCELLED` | `refund_record` 新增 1 行 | REQ-SPEC-001 | IMP-03 |
-| A1-C2 | 参数非法 | reason 超长 | 400 | `code=E_REASON_TOO_LONG` | 无退款记录 | REQ-SPEC-001 | IMP-02 |
-| A1-C3 | 未登录 | 无 token | 401 | `code=UNAUTHENTICATED` | 订单不变 | INV-003 | IMP-01 |
-| A1-C4 | 越权 | 普通用户取消他人订单 | 403 | `code=E_NO_PERMISSION` | 订单不变 | INV-003 | IMP-01 |
-| A1-C5 | 幂等 | 相同幂等键重复提交 | 200 | 第二次返回已取消 | 退款记录仍 1 条 | INV-001 | IMP-03 |
-| A1-C6 | 下游失败 | mock 退款超时 | 500/502 | `code=E_REFUND_TIMEOUT` | 订单状态回滚为 PAID | INV-002 | IMP-11 |
-| A1-C7 | 缓存 | 取消后查详情 | 200 | `data.status=CANCELLED` | 缓存 key 已失效或更新 | — | IMP-20 |
-
-必查场景：**参数非法 / 未登录 / 越权 / 幂等 / 事务回滚 / 缓存一致性 / 响应 schema 匹配 OpenAPI**。
-
-> 基准说明（二元设计，勿混用）：自动化单测与接口测试的 schema 断言以 **OpenAPI/接口文档**为准；`frontend-contract.md` 是给前端的跨端联调契约说明，不作为测试断言基准。二者内容如出现分歧，以 OpenAPI 为准并回流 P5 同步。
-
-### 3. 环境与依赖
-
-| 项 | 方案 |
-|---|---|
-| 数据库 | Testcontainers PostgreSQL（一次性容器）或独立测试库 |
-| 缓存 | Testcontainers Redis |
-| 第三方 | WireMock 场景：成功/失败/超时 |
-| 数据隔离 | `@Transactional` 回滚；跨事务场景用显式清理脚本 |
-| 认证 | 测试 token 工厂，禁止复用生产 token |
-
-### 4. 数据准备与清理
-
-| 用例 | 前置数据 | 清理方式 | 是否可并行 |
-|---|---|---|---|
-| A1-C1 | 已支付订单 + 库存 | 事务回滚 | 是 |
-| A1-C5 | 幂等键预置 | 显式删除 | 否（共享键） |
-
-### 5. 执行顺序与依赖
-
-- 无状态用例并行；有共享数据的用例串行并标注原因。
-- 禁止用例之间传递状态（A 的产物给 B 用），会制造隐性耦合。
-
-### 6. 断言质量要求
-
-- 三层都要断言：**HTTP 状态 + 响应体字段 + 数据侧状态**（DB 行 / Redis key）。
-- 响应体除关键字段外，做 schema 校验（字段名、类型、必填），防契约漂移。
-
----
-
 ## 规划评审速查（关卡 B 逐条勾）
 
 - [ ] 每条用例都有 SPEC-ID，且 SPEC 均为 SETTLED
@@ -123,5 +70,4 @@
 - [ ] 边界与异常分支数量 ≥ 正向
 - [ ] 断言是强断言（值/码/状态），无 `assertNotNull` 糊弄
 - [ ] 单元层无 `@SpringBootTest`、无真实中间件
-- [ ] 集成层只覆盖变更接口，无存量接口冗余用例
 - [ ] 未覆盖项均有理由，无"待补"
